@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/MinimalChatApp.Api/.vs
+/MinimalChatApp.Api/bin/Debug/net8.0
+/MinimalChatApp.Business/bin/Debug/net8.0
+/MinimalChatApp.Api/obj
+/MinimalChatApp.Business/obj
+/MinimalChatApp.Data/bin/Debug/net8.0
+/MinimalChatApp.Data/obj
+/MinimalChatApp.Entity/bin/Debug/net8.0
+/MinimalChatApp.Entity/obj
