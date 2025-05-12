@@ -18,6 +18,8 @@ namespace MinimalChatApp.Controllers
             _messageService = messageService;
         }
 
+
+        //Send Message
         [Authorize]
         [HttpPost]
         [Route("messages")]
@@ -42,6 +44,7 @@ namespace MinimalChatApp.Controllers
         }
 
 
+        //Edit Message
         [Authorize]
         [HttpPut]
         [Route("{messageId}")]
@@ -69,6 +72,7 @@ namespace MinimalChatApp.Controllers
         }
 
 
+        //Delete Message
         [Authorize]
         [HttpDelete]
         [Route("{messageId}")]
@@ -93,6 +97,7 @@ namespace MinimalChatApp.Controllers
         }
 
 
+        //Get Messages
         [Authorize]
         [HttpGet]
         [Route("/messages")]

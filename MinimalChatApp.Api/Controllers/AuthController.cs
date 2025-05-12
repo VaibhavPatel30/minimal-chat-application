@@ -57,7 +57,7 @@ namespace MinimalChatApp.Controllers
         }
 
 
-        //Get all user : exclude the loggedIn user!!!
+        //Get User : exclude the loggedIn user!!!
         [Authorize]
         [HttpGet]
         [Route("users")]

@@ -19,6 +19,7 @@ namespace MinimalChatApp.Controllers
             _logService = logService;
         }
 
+        //Get Request Logs
         [Authorize]
         [HttpGet]
         [Route("log")]
