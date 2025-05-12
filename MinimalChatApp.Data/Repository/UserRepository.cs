@@ -20,6 +20,11 @@ namespace MinimalChatApp.Data.Repository
             return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
+        public async Task<User?> GetByGuidlAsync(string userId)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.UserId.ToString() == userId);
+        }
+
         public async Task AddAsync(User user)
         {
             _context.Users.Add(user);

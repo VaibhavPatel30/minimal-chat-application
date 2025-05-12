@@ -1,0 +1,18 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
+
+namespace MinimalChatApp.Business.IService
+{
+    public interface IMessageService
+    {
+        Task<SendMessageResponse?> SendMessageAsync(Guid senderId, SendMessageRequest request);
+        Task<(bool Success, string? ErrorMessage)> EditMessageAsync(Guid senderId, Guid messageId, string newContent);
+        Task<(bool Success, string? ErrorMessage)> DeleteMessageAsync(Guid senderId, Guid messageId);
+        Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid otherUserId, DateTime before, int count, string sort);
+    }
+}
