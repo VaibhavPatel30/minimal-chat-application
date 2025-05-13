@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MinimalChatApp.Entity.DTOs;
 using MinimalChatApp.Entity.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace MinimalChatApp.Business.IService
 {
@@ -14,5 +15,7 @@ namespace MinimalChatApp.Business.IService
         Task<(bool Success, string? ErrorMessage)> EditMessageAsync(Guid senderId, Guid messageId, string newContent);
         Task<(bool Success, string? ErrorMessage)> DeleteMessageAsync(Guid senderId, Guid messageId);
         Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid otherUserId, DateTime before, int count, string sort);
+
+        Task<List<Message>> GetConversationByContentAsync(Guid userId, string query);
     }
 }

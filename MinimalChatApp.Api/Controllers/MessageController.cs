@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Entity.DTOs;
@@ -100,7 +101,7 @@ namespace MinimalChatApp.Controllers
         //Get Messages
         [Authorize]
         [HttpGet]
-        [Route("/messages")]
+        [Route("messages")]
         public async Task<IActionResult> GetConversation(Guid userId, DateTime? before, int count = 20, string sort = "asc")
         {
             if (userId == Guid.Empty || (sort.ToLower() != "asc" && sort.ToLower() != "desc"))
@@ -125,5 +126,36 @@ namespace MinimalChatApp.Controllers
 
             return Ok(new { messages = response });
         }
+
+
+        //Search Messages
+        [Authorize]
+        [HttpGet]
+        [Route("conversation/search")]
+        public async Task<IActionResult> SearchMessages([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return BadRequest(new { error = "Query parameter is required" });
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);// Custom extension to get user ID from JWT
+
+            var messages = await _messageService.GetConversationByContentAsync(userId, query);
+
+            if (messages == null || messages.Count == 0)
+                return NotFound(new { error = "conversation not found with matching query" });
+
+            var response = messages.Select(m => new
+            {
+                id = m.MessageId,
+                senderId = m.SenderId,
+                receiverId = m.ReceiverId,
+                content = m.Content,
+                timestamp = m.Timestamp
+            });
+
+            return Ok(new { messages = response });
+
+        }
+
     }
 }

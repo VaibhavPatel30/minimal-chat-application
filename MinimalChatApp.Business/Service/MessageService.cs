@@ -84,5 +84,10 @@ namespace MinimalChatApp.Business.Service
         {
             return await _messageRepository.GetConversationAsync(currentUserId, otherUserId, before, count, sort);
         }
+
+        public async Task<List<Message>> GetConversationByContentAsync(Guid userId, string query)
+        {
+            return await _messageRepository.GetConversationByContentAsync(userId, query);
+        }
     }
 }

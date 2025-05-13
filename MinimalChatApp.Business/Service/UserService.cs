@@ -1,6 +1,7 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using MinimalChatApp.Business.IService;
@@ -64,6 +65,35 @@ namespace MinimalChatApp.Business.Service
                     Name = user.Name,
                     Email = user.Email
                 }
+            };
+        }
+
+        public async Task<object?> GoogleLoginAsync(ClaimsPrincipal principal)
+        {
+            var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+            var name = principal.FindFirst(ClaimTypes.Name)?.Value;
+
+            //if (string.IsNullOrEmpty(email)) return null;
+            var user = await _userRepository.GetByEmailAsync(email);
+            if (user == null)
+            {
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    Email = email,
+                    Name = name,
+                    PasswordHash = "hash"
+                    // optionally set source = "Google"
+                };
+                await _userRepository.AddAsync(user);
+            }
+
+            var token = GenerateJwtToken(user);
+
+            return new
+            {
+                token,
+                profile = new { user.UserId, user.Name, user.Email }
             };
         }
 

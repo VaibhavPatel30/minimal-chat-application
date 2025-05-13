@@ -1,4 +1,5 @@
 ﻿using MinimalChatApp.Entity.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace MinimalChatApp.Data.IRepository
 {
@@ -9,6 +10,7 @@ namespace MinimalChatApp.Data.IRepository
         Task UpdateAsync(Message message);
         Task DeleteAsync(Message message);
         Task<List<Message>> GetConversationAsync(Guid userId1, Guid userId2, DateTime before, int count, string sort);
+        Task<List<Message>> GetConversationByContentAsync(Guid userId, string query);
 
     }
 }

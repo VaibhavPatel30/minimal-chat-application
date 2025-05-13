@@ -1,4 +1,5 @@
-﻿using MinimalChatApp.Entity.DTOs;
+﻿using System.Security.Claims;
+using MinimalChatApp.Entity.DTOs;
 
 namespace MinimalChatApp.Business.IService
 {
@@ -9,5 +10,7 @@ namespace MinimalChatApp.Business.IService
         Task<LoginResponse?> LoginAsync(LoginRequest request);
 
         List<UserResponse> GetAllUsersExcept(string currentUser);
+
+        Task<object?> GoogleLoginAsync(ClaimsPrincipal principal);
     }
 }

@@ -56,5 +56,15 @@ namespace MinimalChatApp.Data.Repository
 
             return await query.Take(count).ToListAsync();
         }
+
+        public async Task<List<Message>> GetConversationByContentAsync(Guid userId, string query)
+        {
+            return await _context.Messages
+                .Where(m =>
+                    (m.SenderId == userId || m.ReceiverId == userId) &&
+                    m.Content.Contains(query))
+                .OrderBy(m => m.Timestamp)
+                .ToListAsync();
+        }
     }
 }
