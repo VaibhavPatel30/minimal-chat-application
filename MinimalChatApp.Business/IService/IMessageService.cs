@@ -11,7 +11,7 @@ namespace MinimalChatApp.Business.IService
 {
     public interface IMessageService
     {
-        Task<SendMessageResponse?> SendMessageAsync(Guid senderId, SendMessageRequest request);
+        Task<SendMessageResponse?> SendMessageAsync(Guid senderId, string senderName, SendMessageRequest request);
         Task<(bool Success, string? ErrorMessage)> EditMessageAsync(Guid senderId, Guid messageId, string newContent);
         Task<(bool Success, string? ErrorMessage)> DeleteMessageAsync(Guid senderId, Guid messageId);
         Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid otherUserId, DateTime before, int count, string sort);

@@ -16,6 +16,9 @@ namespace MinimalChatApp.Entity.Models
         public Guid SenderId { get; set; }
 
         [Required]
+        public string SenderName { get; set; }
+
+        [Required]
         public Guid ReceiverId { get; set; }
 
         [Required]

@@ -21,7 +21,7 @@ namespace MinimalChatApp.Business.Service
             _userRepository = userRepository;
         }
 
-        public async Task<SendMessageResponse?> SendMessageAsync(Guid senderId, SendMessageRequest request)
+        public async Task<SendMessageResponse?> SendMessageAsync(Guid senderId, string senderName, SendMessageRequest request)
         {
             // Validate receiver
             var receiver = await _userRepository.GetByGuidlAsync(request.ReceiverId.ToString());
@@ -32,6 +32,7 @@ namespace MinimalChatApp.Business.Service
             {
                 MessageId = Guid.NewGuid(),
                 SenderId = senderId,
+                SenderName = senderName,
                 ReceiverId = request.ReceiverId,
                 Content = request.Content,
                 Timestamp = DateTime.UtcNow
@@ -43,6 +44,7 @@ namespace MinimalChatApp.Business.Service
             {
                 MessageId = result.MessageId,
                 SenderId = result.SenderId,
+                SenderName = result.SenderName,
                 ReceiverId = result.ReceiverId,
                 Content = result.Content,
                 Timestamp = result.Timestamp
