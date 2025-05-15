@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Data.IRepository;
 using MinimalChatApp.Entity.DTOs;
@@ -24,7 +25,7 @@ namespace MinimalChatApp.Business.Service
         public async Task<SendMessageResponse?> SendMessageAsync(Guid senderId, string senderName, SendMessageRequest request)
         {
             // Validate receiver
-            var receiver = await _userRepository.GetByGuidlAsync(request.ReceiverId.ToString());
+            var receiver = await _userRepository.GetByGuidAsync(request.ReceiverId.ToString());
             if (receiver == null)
                 return null;
 
@@ -51,35 +52,43 @@ namespace MinimalChatApp.Business.Service
             };
         }
 
-        public async Task<(bool Success, string? ErrorMessage)> EditMessageAsync(Guid senderId, Guid messageId, string newContent)
+        public async Task<bool> EditMessageAsync(Guid senderId, Guid messageId, string newContent)
         {
             var message = await _messageRepository.GetByIdAsync(messageId);
             if (message == null)
-                return (false, "Message not found");
+            {
+                throw new NotFoundException("Message not found");
+            }
 
             if (message.SenderId != senderId)
-                return (false, "Unauthorized to edit this message");
-
+            {
+                throw new UnauthorizedAccessException("Unauthorized to edit this message");
+            }
             if (string.IsNullOrWhiteSpace(newContent))
-                return (false, "Message content cannot be empty");
-
+            {
+                throw new Exception("Message content cannot be empty");
+            }
             message.Content = newContent;
             await _messageRepository.UpdateAsync(message);
 
-            return (true, null);
+            return true;
         }
 
-        public async Task<(bool Success, string? ErrorMessage)> DeleteMessageAsync(Guid senderId, Guid messageId)
+        public async Task<bool> DeleteMessageAsync(Guid senderId, Guid messageId)
         {
             var message = await _messageRepository.GetByIdAsync(messageId);
             if (message == null)
-                return (false, "Message not found");
+            {
+                throw new NotFoundException("Message not found");
+            }
 
             if (message.SenderId != senderId)
-                return (false, "Unauthorized to delete this message");
+            {
+                throw new UnauthorizedAccessException("Unauthorized to Delete this message");
+            }
 
             await _messageRepository.DeleteAsync(message);
-            return (true, null);
+            return true;
         }
 
         public async Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid otherUserId, DateTime before, int count, string sort)

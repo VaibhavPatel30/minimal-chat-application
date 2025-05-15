@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Chathub;
 using MinimalChatApp.Entity.DTOs;
@@ -25,13 +26,13 @@ namespace MinimalChatApp.Controllers
         [Authorize]
         [HttpPost]
         [Route("messages")]
-        public async Task<IActionResult> SendMessage(SendMessageRequest request)
+        public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { error = "Message sending failed due to validation errors" });
 
             var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-            var senderName =User.FindFirst(ClaimTypes.Name)?.Value!;
+            var senderName = User.FindFirst(ClaimTypes.Name)?.Value!;
 
             if (string.IsNullOrEmpty(senderId.ToString()))
             {
@@ -55,27 +56,31 @@ namespace MinimalChatApp.Controllers
         [Authorize]
         [HttpPut]
         [Route("{messageId}")]
-        public async Task<IActionResult> EditMessage(Guid messageId, EditMessageRequest request)
+        public async Task<IActionResult> EditMessage(Guid messageId, [FromBody] string Content)
         {
-            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(request.Content))
-                return BadRequest(new { error = "Message editing failed due to validation errors" });
-
-            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-
-            var (success, error) = await _messageService.EditMessageAsync(senderId, messageId, request.Content);
-
-            if (!success)
+            try
             {
-                if (error == "Message not found")
-                    return NotFound(new { error });
+                if (!ModelState.IsValid || string.IsNullOrWhiteSpace(Content))
+                    return BadRequest(new { error = "Message editing failed due to validation errors" });
 
-                if (error == "Unauthorized to edit this message")
-                    return Unauthorized(new { error });
+                var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
 
-                return BadRequest(new { error });
+                bool isMessageUpdated = await _messageService.EditMessageAsync(senderId, messageId, Content);
+                if (isMessageUpdated)
+                {
+                    return Ok(new { message = "Message edited successfully" });
+                }
             }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ex.Message });
+            }
+            return StatusCode(500, "Internal Error occured while editing message.");
 
-            return Ok(new { message = "Message edited successfully" });
         }
 
 
@@ -85,22 +90,25 @@ namespace MinimalChatApp.Controllers
         [Route("{messageId}")]
         public async Task<IActionResult> DeleteMessage(Guid messageId)
         {
-            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-
-            var (success, error) = await _messageService.DeleteMessageAsync(senderId, messageId);
-
-            if (!success)
+            try
             {
-                if (error == "Message not found")
-                    return NotFound(new { error });
+                var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                bool isMessageDeleted = await _messageService.DeleteMessageAsync(senderId, messageId);
+                if (isMessageDeleted)
+                {
+                    return Ok(new { message = "Message deleted successfully" });
+                }
 
-                if (error == "Unauthorized to delete this message")
-                    return Unauthorized(new { error });
-
-                return BadRequest(new { error });
             }
-
-            return Ok(new { message = "Message deleted successfully" });
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ex.Message });
+            }
+            return StatusCode(500, "Internal Error occured while deleting message.");
         }
 
 
@@ -148,7 +156,7 @@ namespace MinimalChatApp.Controllers
             var messages = await _messageService.GetConversationByContentAsync(userId, query);
 
             if (messages == null || messages.Count == 0)
-                return NotFound(new { error = "conversation not found with matching query" });
+                return NotFound(new { error = $"conversation not found with '{query}' word" });
 
             var response = messages.Select(m => new
             {

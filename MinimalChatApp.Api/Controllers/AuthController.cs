@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MinimalChatApp.Business.IService;
+using MinimalChatApp.Business.Service;
 using MinimalChatApp.Entity.DTOs;
 using MinimalChatApp.Entity.Models;
 
@@ -27,20 +28,18 @@ namespace MinimalChatApp.Controllers
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new { error = "Registration failed due to validation errors" });
-
-            var (IsSuccess, Error, Response) = await _userService.RegisterAsync(request);
-
-            if (!IsSuccess)
+            try
             {
-                if (Error?.Contains("already registered") == true)
-                    return Conflict(new { error = Error });
+                if (!ModelState.IsValid)
+                    return BadRequest(new { error = "Registration failed due to validation errors" });
 
-                return BadRequest(new { error = Error });
+                UserResponse result = await _userService.RegisterAsync(request);
+                return Ok(result);
             }
-
-            return Ok(Response);
+            catch (ConflictException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
         }
 
 
@@ -64,7 +63,7 @@ namespace MinimalChatApp.Controllers
         //Login Google
         [HttpGet]
         [Route("login/google")]
-        public IActionResult GoogleLogin()
+        public async Task<IActionResult> GoogleLogin()
         {
             var properties = new AuthenticationProperties
             {
@@ -97,15 +96,15 @@ namespace MinimalChatApp.Controllers
         [Authorize]
         [HttpGet]
         [Route("users")]
-        public ActionResult GetAllUsers()
+        public async Task<IActionResult> GetAllUsers()
         {
             var currentUser = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUser))
             {
-                return Unauthorized(new {error = "Unauthorized access"});
+                return Unauthorized(new { error = "Unauthorized access" });
             }
 
-            var users = _userService.GetAllUsersExcept(currentUser);
+            var users = await _userService.GetAllUsersExceptAsync(currentUser);
 
             return Ok(new { users });
         }

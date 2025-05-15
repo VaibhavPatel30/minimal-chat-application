@@ -18,9 +18,8 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
 
-
         // Navigation properties
-        public ICollection<Message> SentMessages { get; set; }
-        public ICollection<Message> ReceivedMessages { get; set; }
+        public ICollection<Message> SentMessages { get; set; } = new List<Message>();
+        public ICollection<Message> ReceivedMessages { get; set; } = new List<Message>();
     }
 }

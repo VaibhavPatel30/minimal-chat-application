@@ -42,7 +42,7 @@ namespace MinimalChatApp.Middleware
                 Path = context.Request.Path
             };
 
-            dbContext.RequestLogs.Add(log);
+            await dbContext.RequestLogs.AddAsync(log);
             await dbContext.SaveChangesAsync();
 
             await _next(context);

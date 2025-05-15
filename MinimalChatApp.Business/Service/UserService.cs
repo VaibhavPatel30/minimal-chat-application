@@ -21,12 +21,13 @@ namespace MinimalChatApp.Business.Service
             _configuration = configuration;
         }
 
-
-        public async Task<(bool IsSuccess, string? Error, UserResponse? Response)> RegisterAsync(RegisterRequest request)
+        //Register new user
+        public async Task<UserResponse> RegisterAsync(RegisterRequest request)
         {
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
-                return (false, "Registration failed because the email is already registered", null);
+                throw new ConflictException("Registration failed because the email is already registered");
+
 
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -38,14 +39,14 @@ namespace MinimalChatApp.Business.Service
                 PasswordHash = passwordHash
             };
 
-            await _userRepository.AddAsync(user);
+            await _userRepository.AddUserAsync(user);
 
-            return (true, null, new UserResponse
+            return new UserResponse
             {
                 UserId = user.UserId,
                 Email = user.Email,
                 Name = user.Name
-            });
+            };
         }
 
         public async Task<LoginResponse?> LoginAsync(LoginRequest request)
@@ -85,7 +86,7 @@ namespace MinimalChatApp.Business.Service
                     PasswordHash = "hash"
                     // optionally set source = "Google"
                 };
-                await _userRepository.AddAsync(user);
+                await _userRepository.AddUserAsync(user);
             }
 
             var token = GenerateJwtToken(user);
@@ -97,9 +98,9 @@ namespace MinimalChatApp.Business.Service
             };
         }
 
-        public List<UserResponse> GetAllUsersExcept(string currentUser)
+        public async Task<List<UserResponse>> GetAllUsersExceptAsync(string currentUser)
         {
-            List<UserResponse> users = _userRepository.GetAllUsers();
+            List<UserResponse> users = await _userRepository.GetAllUsersAsync();
             return users
                      .Where(x => x.UserId.ToString() != currentUser)
                     .ToList();

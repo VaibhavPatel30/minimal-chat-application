@@ -38,7 +38,6 @@ builder.Services.AddScoped<ILogRepository, LogRepository>();
 builder.Services.AddScoped<ILogService, LogService>();
 
 
-//builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
 
 builder.Services.AddControllers();
 

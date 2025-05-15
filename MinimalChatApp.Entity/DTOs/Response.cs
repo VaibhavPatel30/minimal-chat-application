@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace MinimalChatApp.Entity.DTOs
 {
-    public class EditMessageRequest
+    public class ResponseDTO
     {
-        public string Content { get; set; }
+        public bool Success { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 }

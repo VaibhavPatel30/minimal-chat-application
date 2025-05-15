@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace MinimalChatApp.Chathub
 {
     [Authorize]
-    public class ChatHub : Hub //Service responsible for connect, disconnect and send and receive messages
+    public class ChatHub : Hub //Service responsible for connect, disconnect and receive messages
     {
         private static readonly Dictionary<string, string> _userConnections = new();
 

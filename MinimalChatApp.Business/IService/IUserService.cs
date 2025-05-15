@@ -5,11 +5,11 @@ namespace MinimalChatApp.Business.IService
 {
     public interface IUserService
     {
-        Task<(bool IsSuccess, string? Error, UserResponse? Response)> RegisterAsync(RegisterRequest request);
+        Task<UserResponse> RegisterAsync(RegisterRequest request);
 
         Task<LoginResponse?> LoginAsync(LoginRequest request);
 
-        List<UserResponse> GetAllUsersExcept(string currentUser);
+        Task<List<UserResponse>> GetAllUsersExceptAsync(string currentUser);
 
         Task<object?> GoogleLoginAsync(ClaimsPrincipal principal);
     }
