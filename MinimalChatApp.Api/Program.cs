@@ -37,6 +37,8 @@ builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<ILogRepository, LogRepository>();
 builder.Services.AddScoped<ILogService, LogService>();
 
+builder.Services.AddScoped<IGroupRepository, GroupRepository>();
+builder.Services.AddScoped<IGroupService, GroupService>();
 
 
 builder.Services.AddControllers();

@@ -67,5 +67,11 @@ namespace MinimalChatApp.Data.Repository
                                 .OrderBy(m => m.Timestamp)
                                 .ToListAsync();
         }
+
+        public async Task AddGroupMessageAsync(GroupMessage groupMessage)
+        {
+            await _context.GroupMessages.AddAsync(groupMessage);
+            await _context.SaveChangesAsync();
+        }
     }
 }

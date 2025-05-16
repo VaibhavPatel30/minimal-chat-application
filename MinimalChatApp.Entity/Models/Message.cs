@@ -17,7 +17,7 @@ namespace MinimalChatApp.Entity.Models
         public Guid SenderId { get; set; }
 
         [ForeignKey(nameof(SenderId))]
-        public User Sender { get; set; }
+        public User? Sender { get; set; }
 
         [Required]
         public string SenderName { get; set; }
@@ -25,8 +25,8 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public Guid ReceiverId { get; set; }
 
-        [ForeignKey(nameof(ReceiverId))]
-        public User Receiver { get; set; }
+        //[ForeignKey(nameof(ReceiverId))]
+        //public User? Receiver { get; set; }
 
         [Required]
         public string Content { get; set; }

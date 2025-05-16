@@ -12,5 +12,7 @@ namespace MinimalChatApp.Data.IRepository
         Task<List<Message>> GetConversationAsync(Guid userId1, Guid userId2, DateTime before, int count, string sort);
         Task<List<Message>> GetConversationByContentAsync(Guid userId, string query);
 
+        Task AddGroupMessageAsync(GroupMessage groupMessage);
+
     }
 }

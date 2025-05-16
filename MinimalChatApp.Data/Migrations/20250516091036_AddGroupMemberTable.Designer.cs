@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MinimalChatApp.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MinimalChatApp.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250516091036_AddGroupMemberTable")]
+    partial class AddGroupMemberTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -40,8 +43,6 @@ namespace MinimalChatApp.Data.Migrations
 
                     b.HasKey("GroupId");
 
-                    b.HasIndex("CreatedBy");
-
                     b.ToTable("Groups");
                 });
 
@@ -61,34 +62,7 @@ namespace MinimalChatApp.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GroupId");
-
-                    b.HasIndex("UserId");
-
                     b.ToTable("GroupMembers");
-                });
-
-            modelBuilder.Entity("MinimalChatApp.Entity.Models.GroupMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<Guid>("GroupId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MessageId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupId");
-
-                    b.HasIndex("MessageId");
-
-                    b.ToTable("GroupMessages");
                 });
 
             modelBuilder.Entity("MinimalChatApp.Entity.Models.Message", b =>
@@ -114,14 +88,11 @@ namespace MinimalChatApp.Data.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("MessageId");
 
-                    b.HasIndex("SenderId");
+                    b.HasIndex("ReceiverId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages");
                 });
@@ -175,81 +146,27 @@ namespace MinimalChatApp.Data.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MinimalChatApp.Entity.Models.Group", b =>
-                {
-                    b.HasOne("MinimalChatApp.Entity.Models.User", "Creator")
-                        .WithMany("CreatedGroups")
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-                });
-
-            modelBuilder.Entity("MinimalChatApp.Entity.Models.GroupMember", b =>
-                {
-                    b.HasOne("MinimalChatApp.Entity.Models.Group", "Group")
-                        .WithMany("Members")
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MinimalChatApp.Entity.Models.User", "User")
-                        .WithMany("GroupMemberships")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("MinimalChatApp.Entity.Models.GroupMessage", b =>
-                {
-                    b.HasOne("MinimalChatApp.Entity.Models.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MinimalChatApp.Entity.Models.Message", "Message")
-                        .WithMany()
-                        .HasForeignKey("MessageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Group");
-
-                    b.Navigation("Message");
-                });
-
             modelBuilder.Entity("MinimalChatApp.Entity.Models.Message", b =>
                 {
+                    b.HasOne("MinimalChatApp.Entity.Models.User", "Receiver")
+                        .WithMany("ReceivedMessages")
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("MinimalChatApp.Entity.Models.User", "Sender")
                         .WithMany("SentMessages")
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MinimalChatApp.Entity.Models.User", null)
-                        .WithMany("ReceivedMessages")
-                        .HasForeignKey("UserId");
+                    b.Navigation("Receiver");
 
                     b.Navigation("Sender");
                 });
 
-            modelBuilder.Entity("MinimalChatApp.Entity.Models.Group", b =>
-                {
-                    b.Navigation("Members");
-                });
-
             modelBuilder.Entity("MinimalChatApp.Entity.Models.User", b =>
                 {
-                    b.Navigation("CreatedGroups");
-
-                    b.Navigation("GroupMemberships");
-
                     b.Navigation("ReceivedMessages");
 
                     b.Navigation("SentMessages");

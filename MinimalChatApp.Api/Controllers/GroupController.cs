@@ -1,0 +1,225 @@
+﻿using System.Security.Claims;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using MinimalChatApp.Business.ExceptionHandlers;
+using MinimalChatApp.Business.IService;
+using MinimalChatApp.Business.Service;
+using MinimalChatApp.Chathub;
+using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
+
+namespace MinimalChatApp.Controllers
+{
+    [Route("api")]
+    [ApiController]
+    public class GroupController : ControllerBase
+    {
+        private readonly IGroupService _groupService;
+        private readonly IHubContext<ChatHub> _hubContext;
+        public GroupController(IGroupService groupService, IHubContext<ChatHub> hubContext)
+        {
+            _groupService = groupService;
+            _hubContext = hubContext;
+        }
+
+
+        //Create Group
+        [Authorize]
+        [HttpPost]
+        [Route("group")]
+        public async Task<IActionResult> CreateGroup([FromBody] string groupName)
+        {
+
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(new { error = "Group creation failed due to validation errors" });
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                if (string.IsNullOrEmpty(currentUser.ToString()))
+                {
+                    return Unauthorized(new { error = "Unauthorized access" });
+                }
+                var response = await _groupService.CreateGroupAsync(groupName, currentUser);
+                return Ok(response);
+            }
+            catch (ConflictException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+        }
+
+
+        //Update Group Name
+        [Authorize]
+        [HttpPut]
+        [Route("group")]
+        public async Task<IActionResult> UpdateGroup([FromBody] UpdateGroupRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { error = "Group modification failed due to validation errors" });
+                }
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                var result = await _groupService.UpdateGroupAsync(request.GroupId, request.NewGroupName, currentUser);
+                return Ok(result);
+            }
+            catch (ConflictException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+        }
+
+
+        //Detele Group
+        [Authorize]
+        [HttpDelete]
+        [Route("group")]
+        public async Task<IActionResult> DeleteGroup([FromBody] DeleteGroupRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { error = "Group deletion failed due to validation errors" });
+                }
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                var isGroupDeleted = await _groupService.DeleteGroupAsync(request.GroupId, request.GroupName, currentUser);
+                if(isGroupDeleted)
+                {
+                    return Ok(new { message = "Group deleted successfully" });
+                }
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new {error = ex.Message});
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new {error = ex.Message});
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            return StatusCode(500, "Internal Error occured while deleting group.");
+        }
+
+
+        //Add Member to Group
+        [Authorize]
+        [HttpPost]
+        [Route("member")]
+        public async Task<IActionResult> AddMember([FromBody] AddMemberRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { error = "Adding member failed due to validation errors" });
+
+            try
+            {
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                var result = await _groupService.AddMemberAsync(request.UserId, request.GroupId, currentUser);
+                return Ok(result);
+            }
+            catch (ConflictException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+
+        //Delete Member from Group
+        [Authorize]
+        [HttpDelete]
+        [Route("member")]
+        public async Task<IActionResult> RemoveMember([FromBody] int id)
+        {
+            if (id <= 0)
+                return BadRequest(new { error = "Member deletion failed due to validation errors" });
+
+            try
+            {
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                await _groupService.RemoveMemberAsync(id, currentUser);
+                return Ok(new { message = "Member deleted successfully" });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+
+        //Send Message to Group
+        [Authorize]
+        [HttpPost]
+        [Route("groupmessages")]
+        public async Task<IActionResult> SendGroupMessage([FromBody] SendGroupMessageRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { error = "Message sending failed due to validation errors" });
+
+            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var senderName = User.FindFirst(ClaimTypes.Name)?.Value!;
+
+            try
+            {
+                var memberIds = await _groupService.GetMemberUserIdsByGroupIdAsync(request.GroupId);
+                var result = await _groupService.SendMessageToGroupAsync(request.GroupId, request.Content, senderId, senderName);
+
+                foreach (var userId in memberIds)
+                {
+                    await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveMessage", new
+                    {
+                        messageId = result.MessageId,
+                        request.GroupId,
+                        senderId,
+                        request.Content,
+                        timestamp = result.Timestamp
+                    });
+                }
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+
+    }
+}
