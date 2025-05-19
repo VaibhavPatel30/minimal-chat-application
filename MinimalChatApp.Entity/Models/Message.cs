@@ -25,7 +25,7 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public Guid ReceiverId { get; set; }
 
-        //[ForeignKey(nameof(ReceiverId))]
+        //[ForeignKey(nameof(ReceiverId))]   // removed this because reviever can be user or group.
         //public User? Receiver { get; set; }
 
         [Required]

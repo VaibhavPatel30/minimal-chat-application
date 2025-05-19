@@ -36,7 +36,10 @@ namespace MinimalChatApp.Business.Service
             var newMember = new GroupMember
             {
                 UserId = currentUser,
-                GroupId = createdGroupId
+                GroupId = createdGroupId,
+                AccessType = MessageAccessType.All,
+                Days = null,
+                JoinedAt = DateTime.UtcNow
             };
 
             await _groupRepository.AddMemberAsync(newMember);
@@ -95,28 +98,34 @@ namespace MinimalChatApp.Business.Service
             return true;
         }
 
-        public async Task<AddMemberResponse> AddMemberAsync(Guid UserId, Guid GroupId, Guid currentUser)
+        public async Task<AddMemberResponse> AddMemberAsync(Guid UserId, Guid groupId, Guid currentUser, MessageAccessType accessType, int? days)
         {
-            var existing = await _groupRepository.GetMemberAsync(UserId, GroupId);
+            var existing = await _groupRepository.GetMemberAsync(UserId, groupId);
             if (existing != null)
                 throw new ConflictException("User is already a member of the group.");
 
-            var group = await _groupRepository.GetGroupByIdAsync(GroupId);
+            var group = await _groupRepository.GetGroupByIdAsync(groupId);
             if (group == null)
                 throw new NotFoundException("Group does not exist.");
 
             // Check if current user is creator or already a member of this group
-            if (group.CreatedBy != currentUser)
-            {
-                var currentUserMembership = await _groupRepository.GetMemberAsync(currentUser, GroupId);
-                if (currentUserMembership == null)
-                    throw new UnauthorizedAccessException("Only group members or creator can add new members.");
-            }
+
+            var currentUserMembership = await _groupRepository.GetMemberAsync(currentUser, groupId);
+            if (currentUserMembership == null)
+                throw new UnauthorizedAccessException("Only group members or creator can add new members.");
+
+            // Validate access type
+            if (accessType == MessageAccessType.Days && (!days.HasValue || days <= 0))
+                throw new ArgumentException("Access type is set to 'Days' but a valid number of days was not provided.");
+
 
             var newMember = new GroupMember
             {
                 UserId = UserId,
-                GroupId = GroupId
+                GroupId = groupId,
+                AccessType = accessType,
+                Days = accessType == MessageAccessType.Days ? days : null,
+                JoinedAt = DateTime.UtcNow
             };
 
             var added = await _groupRepository.AddMemberAsync(newMember);
@@ -125,7 +134,9 @@ namespace MinimalChatApp.Business.Service
             {
                 Id = added.Id,
                 UserId = added.UserId,
-                GroupId = added.GroupId
+                GroupId = added.GroupId,
+                AccessType = added.AccessType,
+                Days = added.Days
             };
         }
 
@@ -178,8 +189,8 @@ namespace MinimalChatApp.Business.Service
                 MessageId = message.MessageId
             };
 
-            await _messageRepository.AddGroupMessageAsync(groupMessage);  
-            
+            await _messageRepository.AddGroupMessageAsync(groupMessage);
+
             return new SendGroupMessageResponse
             {
                 MessageId = message.MessageId,
@@ -193,6 +204,23 @@ namespace MinimalChatApp.Business.Service
         public async Task<List<Guid>> GetMemberUserIdsByGroupIdAsync(Guid groupId)
         {
             return await _groupRepository.GetMemberUserIdsByGroupIdAsync(groupId);
+        }
+
+        public async Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid groupId, DateTime before, int count, string sort)
+        {
+            var member = await _groupRepository.GetMemberAsync(currentUserId, groupId);
+            if (member == null)
+                throw new UnauthorizedAccessException("Unauthorized to get the conversation.");
+            return await _groupRepository.GetConversationAsync(groupId, before, count, sort, member);
+        }
+
+        public async Task<List<Message>> GetConversationByContentAsync(Guid currentUser, Guid groupId, string query)
+        {
+            var isMember = await _groupRepository.GetMemberAsync(currentUser, groupId);
+            if (isMember == null)
+                throw new UnauthorizedAccessException("Unauthorized to search the conversation.");
+
+            return await _groupRepository.GetConversationByContentAsync(groupId, query);
         }
     }
 }

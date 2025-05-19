@@ -82,5 +82,45 @@ namespace MinimalChatApp.Data.Repository
                         .Select(gm => gm.UserId)
                         .ToListAsync();
         }
+
+        public async Task<List<Message>> GetConversationAsync(Guid groupId, DateTime before, int count, string sort, GroupMember member)
+        {
+            var query = await _context.Messages
+                        .Where(m => m.ReceiverId == groupId && m.Timestamp < before).ToListAsync();
+
+            switch (member.AccessType)
+            {
+                case MessageAccessType.None:
+                    query = query.Where(m => m.Timestamp >= member.JoinedAt).ToList();
+                    break;
+
+                case MessageAccessType.All:
+                    // No additional filter needed
+                    break;
+
+                case MessageAccessType.Days:
+                    if (member.Days.HasValue)
+                    {
+                        var accessStartDate = member.JoinedAt.AddDays(-member.Days.Value);
+                        query = query.Where(m => m.Timestamp >= accessStartDate).ToList();
+                    }
+                    break;
+            }
+
+            query = sort == "desc"
+                ? query.OrderByDescending(m => m.Timestamp).ToList()
+                : query.OrderBy(m => m.Timestamp).ToList();
+
+            return  query.Take(count).ToList();
+        }
+
+        public async Task<List<Message>> GetConversationByContentAsync(Guid groupId, string query)
+        {
+            string loweredQuery = $"%{query.ToLower()}%";
+            return await _context.Messages
+                        .Where(m => m.ReceiverId == groupId && EF.Functions.Like(m.Content.ToLower(), loweredQuery))
+                        .OrderBy(m => m.Timestamp)
+                        .ToListAsync();
+        }
     }
 }

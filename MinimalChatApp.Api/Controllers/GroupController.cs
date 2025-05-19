@@ -98,18 +98,18 @@ namespace MinimalChatApp.Controllers
                 }
                 var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
                 var isGroupDeleted = await _groupService.DeleteGroupAsync(request.GroupId, request.GroupName, currentUser);
-                if(isGroupDeleted)
+                if (isGroupDeleted)
                 {
                     return Ok(new { message = "Group deleted successfully" });
                 }
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new {error = ex.Message});
+                return NotFound(new { error = ex.Message });
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(new {error = ex.Message});
+                return Unauthorized(new { error = ex.Message });
             }
             catch (BadRequestException ex)
             {
@@ -122,16 +122,18 @@ namespace MinimalChatApp.Controllers
         //Add Member to Group
         [Authorize]
         [HttpPost]
-        [Route("member")]
+        [Route("member")] //also responsible to share conversation history.
         public async Task<IActionResult> AddMember([FromBody] AddMemberRequest request)
         {
-            if (!ModelState.IsValid)
+            if (!ModelState.IsValid || (request.AccessType == MessageAccessType.Days && (!request.Days.HasValue || request.Days <= 0)))
+            {
                 return BadRequest(new { error = "Adding member failed due to validation errors" });
+            }
 
             try
             {
                 var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-                var result = await _groupService.AddMemberAsync(request.UserId, request.GroupId, currentUser);
+                var result = await _groupService.AddMemberAsync(request.UserId, request.GroupId, currentUser, request.AccessType, request.Days);
                 return Ok(result);
             }
             catch (ConflictException ex)
@@ -221,5 +223,77 @@ namespace MinimalChatApp.Controllers
         }
 
 
+        //Retrive Group Messages
+        [Authorize]
+        [HttpGet]
+        [Route("groupmessages")]
+        public async Task<IActionResult> GetConversation(Guid groupId, DateTime? before, int count = 20, string sort = "asc")
+        {
+            try
+            {
+                if (groupId == Guid.Empty || (sort.ToLower() != "asc" && sort.ToLower() != "desc"))
+                    return BadRequest(new { error = "Invalid request parameters" });
+
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                var beforeTimestamp = before ?? DateTime.UtcNow;
+
+                var messages = await _groupService.GetConversationAsync(currentUser, groupId, beforeTimestamp, count, sort);
+
+                if (messages == null || messages.Count == 0)
+                    return NotFound(new { error = "conversation not found" });
+
+                var response = messages.Select(m => new
+                {
+                    id = m.MessageId,
+                    senderId = m.SenderId,
+                    content = m.Content,
+                    timestamp = m.Timestamp
+                });
+
+                return Ok(new { messages = response });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+        }
+
+
+        //Search Message in Group by Content
+        [Authorize]
+        [HttpGet]
+        [Route("groupconversation/search")]
+        public async Task<IActionResult> SearchMessages([FromQuery] Guid groupId, [FromQuery] string query)
+        {
+            try
+            {
+
+                if (string.IsNullOrWhiteSpace(query) || groupId == null)
+                    return BadRequest(new { error = "Invalid request parameters" });
+
+                var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+
+                var messages = await _groupService.GetConversationByContentAsync(currentUser, groupId, query);
+
+                if (messages == null || messages.Count == 0)
+                    return NotFound(new { error = $"conversation not found with '{query}' word" });
+
+                var response = messages.Select(m => new
+                {
+                    id = m.MessageId,
+                    senderId = m.SenderId,
+                    receiverId = m.ReceiverId,
+                    content = m.Content,
+                    timestamp = m.Timestamp
+                });
+
+                return Ok(new { messages = response });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+
+        }
     }
 }

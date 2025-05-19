@@ -16,5 +16,7 @@ namespace MinimalChatApp.Data.IRepository
         Task<GroupMember?> GetGroupMemberByIdAsync(int MemberId);
         Task RemoveMemberAsync(GroupMember Member);
         Task<List<Guid>> GetMemberUserIdsByGroupIdAsync(Guid groupId);
+        Task<List<Message>> GetConversationAsync(Guid groupId, DateTime before, int count, string sort, GroupMember member);
+        Task<List<Message>> GetConversationByContentAsync(Guid groupId, string query);
     }
 }

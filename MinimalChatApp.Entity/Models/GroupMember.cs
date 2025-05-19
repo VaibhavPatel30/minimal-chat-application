@@ -18,7 +18,21 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public Guid GroupId { get; set; }
 
+        [Required]
+        public MessageAccessType AccessType { get; set; }
+
+        public int? Days { get; set; }
+
+        public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
         public User User { get; set; }
         public Group Group { get; set; }
+    }
+
+    public enum MessageAccessType
+    {
+        None = 0,
+        All = 1,
+        Days = 2
     }
 }
