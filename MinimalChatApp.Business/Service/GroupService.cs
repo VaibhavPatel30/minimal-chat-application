@@ -1,4 +1,5 @@
-﻿using MinimalChatApp.Business.ExceptionHandlers;
+﻿using Microsoft.AspNetCore.Http;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Data.IRepository;
 using MinimalChatApp.Entity.DTOs;
@@ -8,13 +9,15 @@ namespace MinimalChatApp.Business.Service
 {
     public class GroupService : IGroupService
     {
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IGroupRepository _groupRepository;
         private readonly IMessageRepository _messageRepository;
 
-        public GroupService(IGroupRepository groupRepository, IMessageRepository messageRepository)
+        public GroupService(IGroupRepository groupRepository, IMessageRepository messageRepository, IHttpContextAccessor httpContextAccessor)
         {
             _groupRepository = groupRepository;
             _messageRepository = messageRepository;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<CreateGroupResponse> CreateGroupAsync(string groupName, Guid currentUser)
@@ -163,12 +166,33 @@ namespace MinimalChatApp.Business.Service
             return true;
         }
 
-        public async Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, Guid senderId, string senderName)
+        public async Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, IFormFile? Attachment, Guid senderId, string senderName)
         {
             // Check if sender is a member
             var isMember = await _groupRepository.GetMemberAsync(senderId, groupId);
             if (isMember == null)
                 throw new UnauthorizedAccessException("Only group members can send messages.");
+
+            string? fileUrl = null;
+            string? fileType = null;
+
+            if (Attachment != null)
+            {
+                var fileId = Guid.NewGuid();
+                var fileName = $"{fileId}_{Attachment.FileName}";
+                var filePath = Path.Combine("wwwroot/uploads", fileName);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await Attachment.CopyToAsync(stream);
+
+                var scheme = _httpContextAccessor.HttpContext?.Request.Scheme;
+                var host = _httpContextAccessor.HttpContext?.Request.Host.Value;
+
+                fileUrl = $"{scheme}://{host}/uploads/{fileName}";
+                fileType = Attachment.ContentType;
+            }
 
             // Create message
             var message = new Message
@@ -178,6 +202,8 @@ namespace MinimalChatApp.Business.Service
                 SenderName = senderName,
                 ReceiverId = groupId,
                 Content = content,
+                Attachment = fileUrl,
+                AttachmentType = fileType,
                 Timestamp = DateTime.UtcNow
             };
             await _messageRepository.CreateAsync(message);
@@ -197,6 +223,8 @@ namespace MinimalChatApp.Business.Service
                 GroupId = groupId,
                 SenderId = senderId,
                 Content = content,
+                Attachment = fileUrl,
+                AttachmentType = fileType,
                 Timestamp = message.Timestamp
             };
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Data.IRepository;
@@ -13,13 +14,15 @@ namespace MinimalChatApp.Business.Service
 {
     public class MessageService : IMessageService
     {
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IMessageRepository _messageRepository;
         private readonly IUserRepository _userRepository;
 
-        public MessageService(IMessageRepository messageRepository, IUserRepository userRepository)
+        public MessageService(IMessageRepository messageRepository, IUserRepository userRepository, IHttpContextAccessor httpContextAccessor)
         {
             _messageRepository = messageRepository;
             _userRepository = userRepository;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<SendMessageResponse?> SendMessageAsync(Guid senderId, string senderName, SendMessageRequest request)
@@ -29,6 +32,27 @@ namespace MinimalChatApp.Business.Service
             if (receiver == null)
                 return null;
 
+            string? fileUrl = null;
+            string? fileType = null;
+
+            if (request.Attachment != null)
+            {
+                var fileId = Guid.NewGuid();
+                var fileName = $"{fileId}_{request.Attachment.FileName}";
+                var filePath = Path.Combine("wwwroot/uploads", fileName);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await request.Attachment.CopyToAsync(stream);
+
+                var scheme = _httpContextAccessor.HttpContext?.Request.Scheme;
+                var host = _httpContextAccessor.HttpContext?.Request.Host.Value;
+
+                fileUrl = $"{scheme}://{host}/uploads/{fileName}";
+                fileType = request.Attachment.ContentType;
+            }
+
             var message = new Message
             {
                 MessageId = Guid.NewGuid(),
@@ -36,6 +60,8 @@ namespace MinimalChatApp.Business.Service
                 SenderName = senderName,
                 ReceiverId = request.ReceiverId,
                 Content = request.Content,
+                Attachment = fileUrl,
+                AttachmentType = fileType,
                 Timestamp = DateTime.UtcNow
             };
 
@@ -48,6 +74,8 @@ namespace MinimalChatApp.Business.Service
                 SenderName = result.SenderName,
                 ReceiverId = result.ReceiverId,
                 Content = result.Content,
+                Attachment = result.Attachment,
+                AttachmentType = result.AttachmentType,
                 Timestamp = result.Timestamp
             };
         }
@@ -99,6 +127,11 @@ namespace MinimalChatApp.Business.Service
         public async Task<List<Message>> GetConversationByContentAsync(Guid userId, string query)
         {
             return await _messageRepository.GetConversationByContentAsync(userId, query);
+        }
+
+        public async Task<bool> GenerateNotificationAsync(Guid ReceiverId, Guid MessageId)
+        {
+            return await _messageRepository.GenerateNotificationAsync(ReceiverId, MessageId);
         }
     }
 }

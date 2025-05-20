@@ -23,7 +23,23 @@ namespace MinimalChatApp.Controllers
             _userService = userService;
         }
 
-        //Register User
+        /**
+         * @api {post} /api/register Register a new user
+         * @apiName RegisterUser
+         * @apiGroup User
+         *
+         * @apiBody {String} Email User's email address (must be a valid email).
+         * @apiBody {String} Name User's full name.
+         * @apiBody {String} Password User's password.
+         *
+         * @apiSuccess {String} id Unique ID of the newly registered user.
+         * @apiSuccess {String} name Name of the user.
+         * @apiSuccess {String} email Email of the user.
+         * @apiSuccess {String} token JWT token for authentication.
+         *
+         * @apiError (400 Bad Request) ValidationError Registration failed due to validation errors.
+         * @apiError (409 Conflict) ConflictError Email already exists.
+         */
         [HttpPost]
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)

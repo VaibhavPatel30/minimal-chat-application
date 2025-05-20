@@ -25,11 +25,12 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public Guid ReceiverId { get; set; }
 
-        //[ForeignKey(nameof(ReceiverId))]   // removed this because reviever can be user or group.
-        //public User? Receiver { get; set; }
-
         [Required]
         public string Content { get; set; }
+
+        public string? Attachment { get; set; } // File URL or path
+
+        public string? AttachmentType { get; set; } // MIME type (e.g., image/png, application/pdf)
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }

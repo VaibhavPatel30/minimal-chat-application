@@ -6,15 +6,14 @@ using System.Threading.Tasks;
 
 namespace MinimalChatApp.Entity.DTOs
 {
-    public class SendMessageResponse
+    public class MessageNotificationResponse
     {
+        public int Id { get; set; }
         public Guid MessageId { get; set; }
-        public Guid SenderId { get; set; }
+        public Guid RecieverId { get; set; }
         public string SenderName { get; set; }
-        public Guid ReceiverId { get; set; }
         public string Content { get; set; }
-        public string? Attachment { get; set; } // URL to file
-        public string? AttachmentType { get; set; } // MIME type
-        public DateTime Timestamp { get; set; }
+        public bool IsRead { get; set; }
+
     }
 }

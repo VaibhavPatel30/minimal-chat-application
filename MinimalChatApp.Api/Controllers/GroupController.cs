@@ -1,10 +1,7 @@
 ﻿using System.Security.Claims;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Business.Service;
@@ -20,10 +17,12 @@ namespace MinimalChatApp.Controllers
     {
         private readonly IGroupService _groupService;
         private readonly IHubContext<ChatHub> _hubContext;
-        public GroupController(IGroupService groupService, IHubContext<ChatHub> hubContext)
+        private readonly IMessageService _messageService;
+        public GroupController(IGroupService groupService, IHubContext<ChatHub> hubContext, IMessageService messageService)
         {
             _groupService = groupService;
             _hubContext = hubContext;
+            _messageService = messageService;
         }
 
 
@@ -185,7 +184,8 @@ namespace MinimalChatApp.Controllers
         [Authorize]
         [HttpPost]
         [Route("groupmessages")]
-        public async Task<IActionResult> SendGroupMessage([FromBody] SendGroupMessageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SendGroupMessage([FromForm] SendGroupMessageRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { error = "Message sending failed due to validation errors" });
@@ -196,7 +196,7 @@ namespace MinimalChatApp.Controllers
             try
             {
                 var memberIds = await _groupService.GetMemberUserIdsByGroupIdAsync(request.GroupId);
-                var result = await _groupService.SendMessageToGroupAsync(request.GroupId, request.Content, senderId, senderName);
+                var result = await _groupService.SendMessageToGroupAsync(request.GroupId, request.Content, request.Attachment, senderId, senderName);
 
                 foreach (var userId in memberIds)
                 {
@@ -208,6 +208,7 @@ namespace MinimalChatApp.Controllers
                         request.Content,
                         timestamp = result.Timestamp
                     });
+                    var isNotificationSent = await _messageService.GenerateNotificationAsync(userId, result.MessageId);
                 }
 
                 return Ok(result);

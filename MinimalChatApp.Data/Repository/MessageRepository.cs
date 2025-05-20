@@ -73,5 +73,19 @@ namespace MinimalChatApp.Data.Repository
             await _context.GroupMessages.AddAsync(groupMessage);
             await _context.SaveChangesAsync();
         }
+
+
+        public async Task<bool> GenerateNotificationAsync(Guid ReceiverId, Guid MessageId)
+        {
+            var notification = new MessageNotification
+            {
+                RecieverId = ReceiverId,
+                MessageId = MessageId,
+                IsRead = false
+            };
+            await _context.MessageNotifications.AddAsync(notification);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

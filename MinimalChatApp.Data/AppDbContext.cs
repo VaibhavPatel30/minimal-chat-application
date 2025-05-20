@@ -13,6 +13,7 @@ namespace MinimalChatApp.Data
         public DbSet<Group> Groups { get; set; }
         public DbSet<GroupMember> GroupMembers { get; set; }
         public DbSet<GroupMessage> GroupMessages { get; set; }
+        public DbSet<MessageNotification> MessageNotifications { get; set; }
 
 
 

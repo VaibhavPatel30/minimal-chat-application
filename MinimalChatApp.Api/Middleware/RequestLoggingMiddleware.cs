@@ -17,22 +17,32 @@ namespace MinimalChatApp.Middleware
         {
             context.Request.EnableBuffering();
 
-            var body = "";
+            string body = string.Empty;
+
             if (context.Request.ContentLength > 0 && context.Request.Body.CanSeek)
             {
                 var buffer = new byte[Convert.ToInt32(context.Request.ContentLength)];
                 await context.Request.Body.ReadAsync(buffer.AsMemory(0, buffer.Length));
-                body = Encoding.UTF8.GetString(buffer);
                 context.Request.Body.Position = 0;
+
+                if (IsTextContent(context.Request.ContentType))
+                {
+                    body = Encoding.UTF8.GetString(buffer);
+
+                    // Remove null characters to avoid PostgreSQL errors
+                    body = body.Replace("\0", string.Empty);
+                }
+                else
+                {
+                    // Avoid storing raw binary data in text fields
+                    body = "[Non-text body content omitted]";
+                }
             }
 
             var ip = context.Connection.RemoteIpAddress?.ToString();
-            string? username = null;
-
-            if (context.User.Identity?.IsAuthenticated == true)
-            {
-                username = context.User.Identity.Name;
-            }
+            string? username = context.User.Identity?.IsAuthenticated == true
+                ? context.User.Identity?.Name
+                : null;
 
             var log = new RequestLog
             {
@@ -46,6 +56,16 @@ namespace MinimalChatApp.Middleware
             await dbContext.SaveChangesAsync();
 
             await _next(context);
+        }
+
+        private bool IsTextContent(string? contentType)
+        {
+            if (string.IsNullOrEmpty(contentType)) return false;
+
+            return contentType.Contains("application/json") ||
+                   contentType.Contains("text/plain") ||
+                   contentType.Contains("application/xml") ||
+                   contentType.Contains("application/x-www-form-urlencoded");
         }
     }
 }

@@ -11,6 +11,7 @@ using MinimalChatApp.Middleware;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using MinimalChatApp.Chathub;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.FileProviders;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,8 +41,12 @@ builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<IGroupRepository, GroupRepository>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 
 //Registered DbContext
 //builder.Services.AddDbContext<AppDbContext>(options =>
@@ -119,6 +124,14 @@ app.UseAuthorization();
 
 
 app.MapHub<ChatHub>("/chatHub");
+app.UseStaticFiles(); // already there
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads")),
+    RequestPath = "/uploads"
+});
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 

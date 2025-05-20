@@ -26,7 +26,8 @@ namespace MinimalChatApp.Controllers
         [Authorize]
         [HttpPost]
         [Route("messages")]
-        public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { error = "Message sending failed due to validation errors" });
@@ -47,6 +48,9 @@ namespace MinimalChatApp.Controllers
             // Realtime push to receiver via SignalR
             var receiverId = result.ReceiverId.ToString();
             await _hubContext.Clients.User(receiverId).SendAsync("ReceiveMessage", result);
+
+            //add to notification table
+            var isNotificationSent = await _messageService.GenerateNotificationAsync(result.ReceiverId, result.MessageId);
 
             return Ok(result);
         }
