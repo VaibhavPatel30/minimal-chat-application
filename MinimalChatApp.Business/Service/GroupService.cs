@@ -166,7 +166,7 @@ namespace MinimalChatApp.Business.Service
             return true;
         }
 
-        public async Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, IFormFile? Attachment, Guid senderId, string senderName)
+        public async Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, IFormFile? Attachment, Guid? ParentMessageId, Guid senderId, string senderName)
         {
             // Check if sender is a member
             var isMember = await _groupRepository.GetMemberAsync(senderId, groupId);
@@ -204,7 +204,8 @@ namespace MinimalChatApp.Business.Service
                 Content = content,
                 Attachment = fileUrl,
                 AttachmentType = fileType,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                ParentMessageId= ParentMessageId
             };
             await _messageRepository.CreateAsync(message);
 
@@ -225,7 +226,8 @@ namespace MinimalChatApp.Business.Service
                 Content = content,
                 Attachment = fileUrl,
                 AttachmentType = fileType,
-                Timestamp = message.Timestamp
+                Timestamp = message.Timestamp,
+                ParentMessageId = ParentMessageId
             };
         }
 

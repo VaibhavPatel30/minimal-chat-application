@@ -11,12 +11,12 @@ namespace MinimalChatApp.Entity.Models
     {
         public int Id { get; set; }
 
-        public Guid MessageId { get; set; }
+        public Guid? MessageId { get; set; }
 
         [ForeignKey(nameof(MessageId))]
         public Message Message { get; set; } 
 
-        public Guid RecieverId { get; set; }
+        public Guid? RecieverId { get; set; }
 
         public bool IsRead { get; set; } = false;
     }

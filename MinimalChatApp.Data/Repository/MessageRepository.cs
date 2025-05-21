@@ -75,7 +75,7 @@ namespace MinimalChatApp.Data.Repository
         }
 
 
-        public async Task<bool> GenerateNotificationAsync(Guid ReceiverId, Guid MessageId)
+        public async Task<bool> GenerateNotificationAsync(Guid? ReceiverId, Guid? MessageId)
         {
             var notification = new MessageNotification
             {

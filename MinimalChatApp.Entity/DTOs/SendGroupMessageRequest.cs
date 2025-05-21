@@ -12,5 +12,6 @@ namespace MinimalChatApp.Entity.DTOs
         [Required]
         public string Content { get; set; }
         public IFormFile? Attachment { get; set; }
+        public Guid? ParentMessageId { get; set; }
     }
 }

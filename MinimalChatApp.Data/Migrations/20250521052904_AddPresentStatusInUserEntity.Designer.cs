@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MinimalChatApp.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MinimalChatApp.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250521052904_AddPresentStatusInUserEntity")]
+    partial class AddPresentStatusInUserEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,14 +119,7 @@ namespace MinimalChatApp.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("ForwardedFromMessageId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ParentMessageId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ReceiverId")
-                        .IsRequired()
+                    b.Property<Guid>("ReceiverId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("SenderId")
@@ -159,10 +155,10 @@ namespace MinimalChatApp.Data.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("MessageId")
+                    b.Property<Guid>("MessageId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("RecieverId")
+                    b.Property<Guid>("RecieverId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -204,18 +200,9 @@ namespace MinimalChatApp.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CustomStatusMessage")
-                        .HasColumnType("text");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastSeen")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -227,12 +214,6 @@ namespace MinimalChatApp.Data.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("StatusEndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("StatusStartDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("UserId");
 
@@ -307,7 +288,9 @@ namespace MinimalChatApp.Data.Migrations
                 {
                     b.HasOne("MinimalChatApp.Entity.Models.Message", "Message")
                         .WithMany()
-                        .HasForeignKey("MessageId");
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Message");
                 });

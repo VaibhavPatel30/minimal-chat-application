@@ -196,7 +196,7 @@ namespace MinimalChatApp.Controllers
             try
             {
                 var memberIds = await _groupService.GetMemberUserIdsByGroupIdAsync(request.GroupId);
-                var result = await _groupService.SendMessageToGroupAsync(request.GroupId, request.Content, request.Attachment, senderId, senderName);
+                var result = await _groupService.SendMessageToGroupAsync(request.GroupId, request.Content, request.Attachment, request.ParentMessageId, senderId, senderName);
 
                 foreach (var userId in memberIds)
                 {

@@ -16,6 +16,7 @@ namespace MinimalChatApp.Business.IService
         Task<bool> DeleteMessageAsync(Guid senderId, Guid messageId);
         Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid otherUserId, DateTime before, int count, string sort);
         Task<List<Message>> GetConversationByContentAsync(Guid userId, string query);
-        Task<bool> GenerateNotificationAsync(Guid ReceiverId, Guid MessageId);
+        Task<bool> GenerateNotificationAsync(Guid? ReceiverId, Guid? MessageId);
+        Task<SendMessageResponse> ForwardMessageAsync(Guid SenderId, string SenderName, ForwardMessageRequest request);
     }
 }

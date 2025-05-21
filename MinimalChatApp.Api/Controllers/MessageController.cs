@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
+using MinimalChatApp.Business.Service;
 using MinimalChatApp.Chathub;
 using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
 
 namespace MinimalChatApp.Controllers
 {
@@ -14,11 +16,13 @@ namespace MinimalChatApp.Controllers
     public class MessageController : ControllerBase
     {
         private readonly IMessageService _messageService;
+        private readonly IGroupService _groupService;
         private readonly IHubContext<ChatHub> _hubContext;
 
-        public MessageController(IMessageService messageService, IHubContext<ChatHub> hubContext)
+        public MessageController(IMessageService messageService,IGroupService groupService, IHubContext<ChatHub> hubContext)
         {
             _messageService = messageService;
+            _groupService = groupService;
             _hubContext = hubContext;
         }
 
@@ -173,6 +177,46 @@ namespace MinimalChatApp.Controllers
 
             return Ok(new { messages = response });
 
+        }
+
+
+        [Authorize]
+        [HttpPost]
+        [Route("forwardmessage")]
+        public async Task<IActionResult> ForwardMessage([FromBody] ForwardMessageRequest request)
+        {
+            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);// Custom extension to get user ID from JWT
+            var senderName = User.FindFirst(ClaimTypes.Name)?.Value!;
+            var response = await _messageService.ForwardMessageAsync(senderId, senderName, request);
+            //await _messageService.GenerateNotificationAsync(request.ForwardToId, response.MessageId);
+            //Send message to signalR
+            if (!request.IsGroup)
+            {
+                await _hubContext.Clients.User(request.ForwardToId.ToString()).SendAsync("ReceiveMessage", response);
+                var isNotificationSent = await _messageService.GenerateNotificationAsync(request.ForwardToId, response.MessageId);
+            }
+            else
+            {
+                var memberIds = await _groupService.GetMemberUserIdsByGroupIdAsync(request.ForwardToId);
+                foreach (var userId in memberIds)
+                {
+                    await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveMessage", new
+                    {
+                        messageId = response.MessageId,
+                        request.ForwardToId,
+                        senderId,
+                        response.Content,
+                        timestamp = response.Timestamp
+                    });
+                    var isNotificationSent = await _messageService.GenerateNotificationAsync(userId, response.MessageId);
+                }
+                await _hubContext.Clients.Group(request.ForwardToId.ToString()).SendAsync("ReceiveGroupMessage", response);
+            }
+
+            if (response == null)
+                return NotFound("Message or user not found");
+
+            return Ok(response);
         }
 
     }

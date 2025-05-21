@@ -17,7 +17,7 @@ namespace MinimalChatApp.Business.IService
         Task<AddMemberResponse> AddMemberAsync(Guid UserId, Guid GroupId, Guid currentUser, MessageAccessType AccessType, int? days);
         Task<bool> RemoveMemberAsync(int Id, Guid currentUser);
         Task<List<Guid>> GetMemberUserIdsByGroupIdAsync(Guid groupId);
-        Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, IFormFile? Attachment, Guid senderId, string senderName);
+        Task<SendGroupMessageResponse> SendMessageToGroupAsync(Guid groupId, string content, IFormFile? Attachment, Guid? ParentMessageId, Guid senderId, string senderName);
         Task<List<Message>> GetConversationAsync(Guid currentUserId, Guid groupId, DateTime before, int count, string sort);
         Task<List<Message>> GetConversationByContentAsync(Guid currentUser, Guid groupId, string query);
     }

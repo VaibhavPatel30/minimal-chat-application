@@ -62,7 +62,8 @@ namespace MinimalChatApp.Business.Service
                 Content = request.Content,
                 Attachment = fileUrl,
                 AttachmentType = fileType,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                ParentMessageId = request.ParentMessageId
             };
 
             var result = await _messageRepository.CreateAsync(message);
@@ -76,7 +77,9 @@ namespace MinimalChatApp.Business.Service
                 Content = result.Content,
                 Attachment = result.Attachment,
                 AttachmentType = result.AttachmentType,
-                Timestamp = result.Timestamp
+                Timestamp = result.Timestamp,
+                ParentMessageId = result.ParentMessageId
+
             };
         }
 
@@ -129,9 +132,55 @@ namespace MinimalChatApp.Business.Service
             return await _messageRepository.GetConversationByContentAsync(userId, query);
         }
 
-        public async Task<bool> GenerateNotificationAsync(Guid ReceiverId, Guid MessageId)
+        public async Task<bool> GenerateNotificationAsync(Guid? ReceiverId, Guid? MessageId)
         {
             return await _messageRepository.GenerateNotificationAsync(ReceiverId, MessageId);
+        }
+
+        public async Task<SendMessageResponse?> ForwardMessageAsync(Guid senderId, string senderName, ForwardMessageRequest request)
+        {
+            var originalMessage = await _messageRepository.GetByIdAsync(request.OriginalMessageId);
+            if (originalMessage == null)
+                throw new NotFoundException("Original message not found");
+
+            var message = new Message
+            {
+                MessageId = Guid.NewGuid(),
+                SenderId = senderId,
+                SenderName = senderName,
+                ReceiverId = request.ForwardToId,
+                Content = $"[Forwarded]\n{originalMessage.Content}",
+                Attachment = originalMessage.Attachment,
+                AttachmentType = originalMessage.AttachmentType,
+                Timestamp = DateTime.UtcNow,
+                ForwardedFromMessageId = request.OriginalMessageId
+            };
+
+            await _messageRepository.CreateAsync(message);
+            if (request.IsGroup)
+            {
+                // Save GroupMessage mapping
+                var groupMessage = new GroupMessage
+                {
+                    GroupId = request.ForwardToId,
+                    MessageId = message.MessageId
+                };
+                await _messageRepository.AddGroupMessageAsync(groupMessage);
+            }
+
+            return new SendMessageResponse
+            {
+                MessageId = message.MessageId,
+                SenderId = message.SenderId,
+                SenderName = message.SenderName,
+                ReceiverId = message.ReceiverId ?? Guid.Empty,
+                Content = message.Content,
+                Attachment = message.Attachment,
+                AttachmentType = message.AttachmentType,
+                Timestamp = message.Timestamp,
+                ParentMessageId = message.ParentMessageId,
+                ForwardedFromMessageId = message.ForwardedFromMessageId 
+            };
         }
     }
 }

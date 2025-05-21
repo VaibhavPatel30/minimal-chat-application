@@ -31,17 +31,32 @@ namespace MinimalChatApp.Data.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<UserResponse>> GetAllUsersAsync()
+        public async Task<List<OtherUserResponse>> GetAllUsersAsync()
         {
 
             return await _context.Users
-        .Select(u => new UserResponse
+        .Select(u => new OtherUserResponse
         {
             UserId = u.UserId,
             Name = u.Name,
-            Email = u.Email
-        })
+            Email = u.Email,
+            Status = u.Status,
+            CustomStatusMessage = u.CustomStatusMessage,
+            StatusStartDate = u.StatusStartDate,
+            StatusEndDate = u.StatusEndDate,
+            IsActive = u.IsActive,
+            LastSeen = u.LastSeen,
+
+        }).OrderByDescending(u => u.IsActive)               // Active users first
+          .ThenByDescending(u => u.LastSeen)
         .ToListAsync();
+        }
+
+        public async Task UpdateUserAsync(User user)
+        {
+            _context.Users.Update(user);
+
+            await _context.SaveChangesAsync();
         }
 
     }

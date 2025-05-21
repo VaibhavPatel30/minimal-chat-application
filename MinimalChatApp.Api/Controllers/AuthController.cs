@@ -153,5 +153,22 @@ namespace MinimalChatApp.Controllers
 
             return Ok(new { users });
         }
+
+
+
+        [Authorize]
+        [HttpPut]
+        [Route("logout")]
+        public async Task<IActionResult> LogoutAsync()
+        {
+            var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            if (string.IsNullOrEmpty(currentUser.ToString()))
+            {
+                return Unauthorized(new { error = "Unauthorized access" });
+            }
+            await _userService.LogoutAsync(currentUser);
+            return Ok(new { message = "Logged out" });
+            
+        }
     }
 }

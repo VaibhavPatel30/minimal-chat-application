@@ -19,11 +19,13 @@ namespace MinimalChatApp.Entity.Models
         [ForeignKey(nameof(SenderId))]
         public User? Sender { get; set; }
 
+        public Guid? ForwardedFromMessageId { get; set; }
+
         [Required]
         public string SenderName { get; set; }
 
         [Required]
-        public Guid ReceiverId { get; set; }
+        public Guid? ReceiverId { get; set; }
 
         [Required]
         public string Content { get; set; }
@@ -33,5 +35,7 @@ namespace MinimalChatApp.Entity.Models
         public string? AttachmentType { get; set; } // MIME type (e.g., image/png, application/pdf)
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        public Guid? ParentMessageId { get; set; }
     }
 }

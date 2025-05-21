@@ -11,5 +11,6 @@ namespace MinimalChatApp.Entity.DTOs
         [Required(ErrorMessage = "Content is required")]
         public string Content { get; set; }
         public IFormFile? Attachment { get; set; }
+        public Guid? ParentMessageId { get; set; }
     }
 }

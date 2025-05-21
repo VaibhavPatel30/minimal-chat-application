@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Data.IRepository;
 using MinimalChatApp.Entity.DTOs;
@@ -55,6 +56,11 @@ namespace MinimalChatApp.Business.Service
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
 
+            // Mark user as active and clear last seen
+            user.IsActive = true;
+            user.LastSeen = null;
+            await _userRepository.UpdateUserAsync(user);
+
             var token = GenerateJwtToken(user);
 
             return new LoginResponse
@@ -64,7 +70,13 @@ namespace MinimalChatApp.Business.Service
                 {
                     UserId = user.UserId,
                     Name = user.Name,
-                    Email = user.Email
+                    Email = user.Email,
+                    Status = user.Status,
+                    IsActive = true,
+                    LastSeen = null,
+                    CustomStatusMessage = user.CustomStatusMessage,
+                    StatusStartDate = user.StatusStartDate,
+                    StatusEndDate = user.StatusEndDate
                 }
             };
         }
@@ -94,16 +106,53 @@ namespace MinimalChatApp.Business.Service
             return new
             {
                 token,
-                profile = new { user.UserId, user.Name, user.Email }
+                profile = new
+                {
+                    user.UserId,
+                    user.Name,
+                    user.Email,
+                    user.Status,
+                    user.CustomStatusMessage,
+                    user.StatusStartDate,
+                    user.StatusEndDate
+                }
             };
         }
 
-        public async Task<List<UserResponse>> GetAllUsersExceptAsync(string currentUser)
+        public async Task<List<OtherUserResponse>> GetAllUsersExceptAsync(string currentUser)
         {
-            List<UserResponse> users = await _userRepository.GetAllUsersAsync();
+            List<OtherUserResponse> users = await _userRepository.GetAllUsersAsync();
             return users
                      .Where(x => x.UserId.ToString() != currentUser)
                     .ToList();
+        }
+
+        public async Task UpdateStatusAsync(UpdateStatusRequest request, Guid currentUser)
+        {
+            var userDetails = await _userRepository.GetByGuidAsync(currentUser.ToString());
+
+            if (userDetails == null)
+            {
+                throw new NotFoundException("User not Found");
+            }
+
+            userDetails.Status = request.Status;
+            userDetails.CustomStatusMessage = request.CustomMessage;
+            userDetails.StatusStartDate = request.StartDate;
+            userDetails.StatusEndDate = request.EndDate;
+
+            await _userRepository.UpdateUserAsync(userDetails);
+        }
+
+        public async Task LogoutAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByGuidAsync(userId.ToString());
+            if (user != null)
+            {
+                user.IsActive = false;
+                user.LastSeen = DateTime.UtcNow;
+                await _userRepository.UpdateUserAsync(user);
+            }
         }
 
         private string GenerateJwtToken(User user)

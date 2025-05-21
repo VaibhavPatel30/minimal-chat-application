@@ -15,5 +15,6 @@ namespace MinimalChatApp.Entity.DTOs
         public string? Attachment { get; set; } // URL to file
         public string? AttachmentType { get; set; } // MIME type
         public DateTime Timestamp { get; set; }
+        public Guid? ParentMessageId { get; set; }
     }
 }
