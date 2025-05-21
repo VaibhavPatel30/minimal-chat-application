@@ -59,7 +59,22 @@ namespace MinimalChatApp.Controllers
         }
 
 
-        //Login User
+        /**
+         * @api {post} /api/login Login a user
+         * @apiName LoginUser
+         * @apiGroup User
+         *
+         * @apiBody {String} Email User's email address.
+         * @apiBody {String} Password User's password.
+         *
+         * @apiSuccess {String} id Unique ID of the user.
+         * @apiSuccess {String} name Name of the user.
+         * @apiSuccess {String} email Email of the user.
+         * @apiSuccess {String} token JWT token for authentication.
+         *
+         * @apiError (400 Bad Request) ValidationError Login failed due to validation errors.
+         * @apiError (401 Unauthorized) AuthError Login failed due to incorrect credentials.
+         */
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login(LoginRequest request)
@@ -108,7 +123,21 @@ namespace MinimalChatApp.Controllers
         }
 
 
-        //Get User : exclude the loggedIn user!!!
+        /**
+         * @api {get} /api/users Get all users (excluding logged-in user)
+         * @apiName GetAllUsers
+         * @apiGroup User
+         * @apiPermission Authenticated
+         *
+         * @apiHeader {String} Authorization Bearer token for authentication.
+         *
+         * @apiSuccess {Object[]} users List of users excluding the currently logged-in user.
+         * @apiSuccess {String} users.id User ID.
+         * @apiSuccess {String} users.name Name of the user.
+         * @apiSuccess {String} users.email Email address of the user.
+         *
+         * @apiError (401 Unauthorized) UnauthorizedAccess User is not authenticated.
+         */
         [Authorize]
         [HttpGet]
         [Route("users")]
