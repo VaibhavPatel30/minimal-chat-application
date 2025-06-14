@@ -6,10 +6,9 @@ namespace MinimalChatApp.Data.IRepository
     public interface IUserRepository
     {
         Task<User?> GetByEmailAsync(string email);
-
-        Task<User> GetByGuidlAsync(string userId);
-        Task AddAsync(User user);
-
-        List<UserResponse> GetAllUsers();
+        Task<User> GetByGuidAsync(string userId);
+        Task AddUserAsync(User user);
+        Task<List<OtherUserResponse>> GetAllUsersAsync();
+        Task UpdateUserAsync(User user);
     }
 }

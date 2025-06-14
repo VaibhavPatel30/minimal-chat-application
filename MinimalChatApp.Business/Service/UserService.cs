@@ -1,8 +1,10 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
 using MinimalChatApp.Data.IRepository;
 using MinimalChatApp.Entity.DTOs;
@@ -20,12 +22,13 @@ namespace MinimalChatApp.Business.Service
             _configuration = configuration;
         }
 
-
-        public async Task<(bool IsSuccess, string? Error, UserResponse? Response)> RegisterAsync(RegisterRequest request)
+        //Register new user
+        public async Task<UserResponse> RegisterAsync(RegisterRequest request)
         {
             var existingUser = await _userRepository.GetByEmailAsync(request.Email);
             if (existingUser != null)
-                return (false, "Registration failed because the email is already registered", null);
+                throw new ConflictException("Registration failed because the email is already registered");
+
 
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -37,14 +40,14 @@ namespace MinimalChatApp.Business.Service
                 PasswordHash = passwordHash
             };
 
-            await _userRepository.AddAsync(user);
+            await _userRepository.AddUserAsync(user);
 
-            return (true, null, new UserResponse
+            return new UserResponse
             {
                 UserId = user.UserId,
                 Email = user.Email,
                 Name = user.Name
-            });
+            };
         }
 
         public async Task<LoginResponse?> LoginAsync(LoginRequest request)
@@ -52,6 +55,11 @@ namespace MinimalChatApp.Business.Service
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return null;
+
+            // Mark user as active and clear last seen
+            user.IsActive = true;
+            user.LastSeen = null;
+            await _userRepository.UpdateUserAsync(user);
 
             var token = GenerateJwtToken(user);
 
@@ -62,17 +70,89 @@ namespace MinimalChatApp.Business.Service
                 {
                     UserId = user.UserId,
                     Name = user.Name,
-                    Email = user.Email
+                    Email = user.Email,
+                    Status = user.Status,
+                    IsActive = true,
+                    LastSeen = null,
+                    CustomStatusMessage = user.CustomStatusMessage,
+                    StatusStartDate = user.StatusStartDate,
+                    StatusEndDate = user.StatusEndDate
                 }
             };
         }
 
-        public List<UserResponse> GetAllUsersExcept(string currentUser)
+        public async Task<object?> GoogleLoginAsync(ClaimsPrincipal principal)
         {
-            List<UserResponse> users = _userRepository.GetAllUsers();
+            var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+            var name = principal.FindFirst(ClaimTypes.Name)?.Value;
+
+            //if (string.IsNullOrEmpty(email)) return null;
+            var user = await _userRepository.GetByEmailAsync(email);
+            if (user == null)
+            {
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    Email = email,
+                    Name = name,
+                    PasswordHash = "hash"
+                    // optionally set source = "Google"
+                };
+                await _userRepository.AddUserAsync(user);
+            }
+
+            var token = GenerateJwtToken(user);
+
+            return new
+            {
+                token,
+                profile = new
+                {
+                    user.UserId,
+                    user.Name,
+                    user.Email,
+                    user.Status,
+                    user.CustomStatusMessage,
+                    user.StatusStartDate,
+                    user.StatusEndDate
+                }
+            };
+        }
+
+        public async Task<List<OtherUserResponse>> GetAllUsersExceptAsync(string currentUser)
+        {
+            List<OtherUserResponse> users = await _userRepository.GetAllUsersAsync();
             return users
                      .Where(x => x.UserId.ToString() != currentUser)
                     .ToList();
+        }
+
+        public async Task UpdateStatusAsync(UpdateStatusRequest request, Guid currentUser)
+        {
+            var userDetails = await _userRepository.GetByGuidAsync(currentUser.ToString());
+
+            if (userDetails == null)
+            {
+                throw new NotFoundException("User not Found");
+            }
+
+            userDetails.Status = request.Status;
+            userDetails.CustomStatusMessage = request.CustomMessage;
+            userDetails.StatusStartDate = request.StartDate;
+            userDetails.StatusEndDate = request.EndDate;
+
+            await _userRepository.UpdateUserAsync(userDetails);
+        }
+
+        public async Task LogoutAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByGuidAsync(userId.ToString());
+            if (user != null)
+            {
+                user.IsActive = false;
+                user.LastSeen = DateTime.UtcNow;
+                await _userRepository.UpdateUserAsync(user);
+            }
         }
 
         private string GenerateJwtToken(User user)

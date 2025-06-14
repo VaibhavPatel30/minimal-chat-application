@@ -1,13 +1,21 @@
-﻿using MinimalChatApp.Entity.DTOs;
+﻿using System.Security.Claims;
+using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
 
 namespace MinimalChatApp.Business.IService
 {
     public interface IUserService
     {
-        Task<(bool IsSuccess, string? Error, UserResponse? Response)> RegisterAsync(RegisterRequest request);
+        Task<UserResponse> RegisterAsync(RegisterRequest request);
 
         Task<LoginResponse?> LoginAsync(LoginRequest request);
 
-        List<UserResponse> GetAllUsersExcept(string currentUser);
+        Task<List<OtherUserResponse>> GetAllUsersExceptAsync(string currentUser);
+
+        Task<object?> GoogleLoginAsync(ClaimsPrincipal principal);
+
+        Task UpdateStatusAsync(UpdateStatusRequest request, Guid currentUser);
+
+        Task LogoutAsync(Guid userId);
     }
 }

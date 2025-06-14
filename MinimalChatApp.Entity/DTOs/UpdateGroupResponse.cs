@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace MinimalChatApp.Entity.DTOs
 {
-    public class EditMessageRequest
+    public class UpdateGroupResponse
     {
-        public string Content { get; set; }
+        public Guid GroupId { get; set; }
+        public string GroupName { get; set; }
     }
 }

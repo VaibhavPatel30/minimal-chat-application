@@ -1,9 +1,13 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.SignalR;
+using MinimalChatApp.Business.ExceptionHandlers;
 using MinimalChatApp.Business.IService;
+using MinimalChatApp.Business.Service;
+using MinimalChatApp.Chathub;
 using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
 
 namespace MinimalChatApp.Controllers
 {
@@ -12,90 +16,114 @@ namespace MinimalChatApp.Controllers
     public class MessageController : ControllerBase
     {
         private readonly IMessageService _messageService;
+        private readonly IGroupService _groupService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public MessageController(IMessageService messageService)
+        public MessageController(IMessageService messageService,IGroupService groupService, IHubContext<ChatHub> hubContext)
         {
             _messageService = messageService;
+            _groupService = groupService;
+            _hubContext = hubContext;
         }
 
+        //Send Message
         [Authorize]
         [HttpPost]
         [Route("messages")]
-        public async Task<IActionResult> SendMessage(SendMessageRequest request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SendMessage([FromForm] SendMessageRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { error = "Message sending failed due to validation errors" });
 
             var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var senderName = User.FindFirst(ClaimTypes.Name)?.Value!;
 
             if (string.IsNullOrEmpty(senderId.ToString()))
             {
                 return Unauthorized(new { error = "Unauthorized access" });
             }
 
-            var result = await _messageService.SendMessageAsync(senderId, request);
+            var result = await _messageService.SendMessageAsync(senderId, senderName, request);
 
             if (result == null)
                 return BadRequest(new { error = "Invalid receiver or message content" });
+
+            // Realtime push to receiver via SignalR
+            var receiverId = result.ReceiverId.ToString();
+            await _hubContext.Clients.User(receiverId).SendAsync("ReceiveMessage", result);
+
+            //add to notification table
+            var isNotificationSent = await _messageService.GenerateNotificationAsync(result.ReceiverId, result.MessageId);
 
             return Ok(result);
         }
 
 
+        //Edit Message
         [Authorize]
         [HttpPut]
         [Route("{messageId}")]
-        public async Task<IActionResult> EditMessage(Guid messageId, EditMessageRequest request)
+        public async Task<IActionResult> EditMessage(Guid messageId, [FromBody] string Content)
         {
-            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(request.Content))
-                return BadRequest(new { error = "Message editing failed due to validation errors" });
-
-            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-
-            var (success, error) = await _messageService.EditMessageAsync(senderId, messageId, request.Content);
-
-            if (!success)
+            try
             {
-                if (error == "Message not found")
-                    return NotFound(new { error });
+                if (!ModelState.IsValid || string.IsNullOrWhiteSpace(Content))
+                    return BadRequest(new { error = "Message editing failed due to validation errors" });
 
-                if (error == "Unauthorized to edit this message")
-                    return Unauthorized(new { error });
+                var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
 
-                return BadRequest(new { error });
+                bool isMessageUpdated = await _messageService.EditMessageAsync(senderId, messageId, Content);
+                if (isMessageUpdated)
+                {
+                    return Ok(new { message = "Message edited successfully" });
+                }
             }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ex.Message });
+            }
+            return StatusCode(500, "Internal Error occured while editing message.");
 
-            return Ok(new { message = "Message edited successfully" });
         }
 
 
+        //Delete Message
         [Authorize]
         [HttpDelete]
         [Route("{messageId}")]
         public async Task<IActionResult> DeleteMessage(Guid messageId)
         {
-            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
-
-            var (success, error) = await _messageService.DeleteMessageAsync(senderId, messageId);
-
-            if (!success)
+            try
             {
-                if (error == "Message not found")
-                    return NotFound(new { error });
+                var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+                bool isMessageDeleted = await _messageService.DeleteMessageAsync(senderId, messageId);
+                if (isMessageDeleted)
+                {
+                    return Ok(new { message = "Message deleted successfully" });
+                }
 
-                if (error == "Unauthorized to delete this message")
-                    return Unauthorized(new { error });
-
-                return BadRequest(new { error });
             }
-
-            return Ok(new { message = "Message deleted successfully" });
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { ex.Message });
+            }
+            return StatusCode(500, "Internal Error occured while deleting message.");
         }
 
 
+        //Get Messages
         [Authorize]
         [HttpGet]
-        [Route("/messages")]
+        [Route("messages")]
         public async Task<IActionResult> GetConversation(Guid userId, DateTime? before, int count = 20, string sort = "asc")
         {
             if (userId == Guid.Empty || (sort.ToLower() != "asc" && sort.ToLower() != "desc"))
@@ -120,5 +148,76 @@ namespace MinimalChatApp.Controllers
 
             return Ok(new { messages = response });
         }
+
+
+        //Search Messages
+        [Authorize]
+        [HttpGet]
+        [Route("conversation/search")]
+        public async Task<IActionResult> SearchMessages([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return BadRequest(new { error = "Query parameter is required" });
+
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);// Custom extension to get user ID from JWT
+
+            var messages = await _messageService.GetConversationByContentAsync(userId, query);
+
+            if (messages == null || messages.Count == 0)
+                return NotFound(new { error = $"conversation not found with '{query}' word" });
+
+            var response = messages.Select(m => new
+            {
+                id = m.MessageId,
+                senderId = m.SenderId,
+                receiverId = m.ReceiverId,
+                content = m.Content,
+                timestamp = m.Timestamp
+            });
+
+            return Ok(new { messages = response });
+
+        }
+
+
+        [Authorize]
+        [HttpPost]
+        [Route("forwardmessage")]
+        public async Task<IActionResult> ForwardMessage([FromBody] ForwardMessageRequest request)
+        {
+            var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);// Custom extension to get user ID from JWT
+            var senderName = User.FindFirst(ClaimTypes.Name)?.Value!;
+            var response = await _messageService.ForwardMessageAsync(senderId, senderName, request);
+            //await _messageService.GenerateNotificationAsync(request.ForwardToId, response.MessageId);
+            //Send message to signalR
+            if (!request.IsGroup)
+            {
+                await _hubContext.Clients.User(request.ForwardToId.ToString()).SendAsync("ReceiveMessage", response);
+                var isNotificationSent = await _messageService.GenerateNotificationAsync(request.ForwardToId, response.MessageId);
+            }
+            else
+            {
+                var memberIds = await _groupService.GetMemberUserIdsByGroupIdAsync(request.ForwardToId);
+                foreach (var userId in memberIds)
+                {
+                    await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveMessage", new
+                    {
+                        messageId = response.MessageId,
+                        request.ForwardToId,
+                        senderId,
+                        response.Content,
+                        timestamp = response.Timestamp
+                    });
+                    var isNotificationSent = await _messageService.GenerateNotificationAsync(userId, response.MessageId);
+                }
+                await _hubContext.Clients.Group(request.ForwardToId.ToString()).SendAsync("ReceiveGroupMessage", response);
+            }
+
+            if (response == null)
+                return NotFound("Message or user not found");
+
+            return Ok(response);
+        }
+
     }
 }

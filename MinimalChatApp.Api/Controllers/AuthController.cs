@@ -1,8 +1,13 @@
 ﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using MinimalChatApp.Business.IService;
+using MinimalChatApp.Business.Service;
 using MinimalChatApp.Entity.DTOs;
+using MinimalChatApp.Entity.Models;
 
 
 namespace MinimalChatApp.Controllers
@@ -18,29 +23,58 @@ namespace MinimalChatApp.Controllers
             _userService = userService;
         }
 
-        //Register User
+        /**
+         * @api {post} /api/register Register a new user
+         * @apiName RegisterUser
+         * @apiGroup User
+         *
+         * @apiBody {String} Email User's email address (must be a valid email).
+         * @apiBody {String} Name User's full name.
+         * @apiBody {String} Password User's password.
+         *
+         * @apiSuccess {String} id Unique ID of the newly registered user.
+         * @apiSuccess {String} name Name of the user.
+         * @apiSuccess {String} email Email of the user.
+         * @apiSuccess {String} token JWT token for authentication.
+         *
+         * @apiError (400 Bad Request) ValidationError Registration failed due to validation errors.
+         * @apiError (409 Conflict) ConflictError Email already exists.
+         */
         [HttpPost]
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new { error = "Registration failed due to validation errors" });
-
-            var (IsSuccess, Error, Response) = await _userService.RegisterAsync(request);
-
-            if (!IsSuccess)
+            try
             {
-                if (Error?.Contains("already registered") == true)
-                    return Conflict(new { error = Error });
+                if (!ModelState.IsValid)
+                    return BadRequest(new { error = "Registration failed due to validation errors" });
 
-                return BadRequest(new { error = Error });
+                UserResponse result = await _userService.RegisterAsync(request);
+                return Ok(result);
             }
-
-            return Ok(Response);
+            catch (ConflictException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
         }
 
 
-        //Login User
+        /**
+         * @api {post} /api/login Login a user
+         * @apiName LoginUser
+         * @apiGroup User
+         *
+         * @apiBody {String} Email User's email address.
+         * @apiBody {String} Password User's password.
+         *
+         * @apiSuccess {String} id Unique ID of the user.
+         * @apiSuccess {String} name Name of the user.
+         * @apiSuccess {String} email Email of the user.
+         * @apiSuccess {String} token JWT token for authentication.
+         *
+         * @apiError (400 Bad Request) ValidationError Login failed due to validation errors.
+         * @apiError (401 Unauthorized) AuthError Login failed due to incorrect credentials.
+         */
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login(LoginRequest request)
@@ -57,21 +91,84 @@ namespace MinimalChatApp.Controllers
         }
 
 
-        //Get all user : exclude the loggedIn user!!!
+        //Login Google
+        [HttpGet]
+        [Route("login/google")]
+        public async Task<IActionResult> GoogleLogin()
+        {
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("GoogleResponse")
+            };
+
+            return Challenge(properties, "Google");
+        }
+
+        [HttpGet]
+        [Route("signin-google")]
+        public async Task<IActionResult> GoogleResponse()
+        {
+            var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+
+            if (!result.Succeeded)
+                return Unauthorized(new { error = "Google authentication failed" });
+
+            var response = await _userService.GoogleLoginAsync(result.Principal);
+
+            if (response == null)
+                return Unauthorized(new { error = "Google login failed" });
+
+            return Ok(response);
+        }
+
+
+        /**
+         * @api {get} /api/users Get all users (excluding logged-in user)
+         * @apiName GetAllUsers
+         * @apiGroup User
+         * @apiPermission Authenticated
+         *
+         * @apiHeader {String} Authorization Bearer token for authentication.
+         *
+         * @apiSuccess {Object[]} users List of users excluding the currently logged-in user.
+         * @apiSuccess {String} users.id User ID.
+         * @apiSuccess {String} users.name Name of the user.
+         * @apiSuccess {String} users.email Email address of the user.
+         *
+         * @apiError (401 Unauthorized) UnauthorizedAccess User is not authenticated.
+         */
         [Authorize]
         [HttpGet]
         [Route("users")]
-        public ActionResult GetAllUsers()
+        public async Task<IActionResult> GetAllUsers()
         {
             var currentUser = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUser))
             {
-                return Unauthorized(new {error = "Unauthorized access"});
+                return Unauthorized(new { error = "Unauthorized access" });
             }
 
-            var users = _userService.GetAllUsersExcept(currentUser);
+            var users = await _userService.GetAllUsersExceptAsync(currentUser);
 
             return Ok(new { users });
+        }
+
+
+
+        [Authorize]
+        [HttpPut]
+        [Route("logout")]
+        public async Task<IActionResult> LogoutAsync()
+        {
+            var currentUser = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            if (string.IsNullOrEmpty(currentUser.ToString()))
+            {
+                return Unauthorized(new { error = "Unauthorized access" });
+            }
+            await _userService.LogoutAsync(currentUser);
+            return Ok(new { message = "Logged out" });
+            
         }
     }
 }

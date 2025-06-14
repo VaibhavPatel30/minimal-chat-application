@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,16 +16,26 @@ namespace MinimalChatApp.Entity.Models
         [Required]
         public Guid SenderId { get; set; }
 
+        [ForeignKey(nameof(SenderId))]
+        public User? Sender { get; set; }
+
+        public Guid? ForwardedFromMessageId { get; set; }
+
         [Required]
-        public Guid ReceiverId { get; set; }
+        public string SenderName { get; set; }
+
+        [Required]
+        public Guid? ReceiverId { get; set; }
 
         [Required]
         public string Content { get; set; }
 
+        public string? Attachment { get; set; } // File URL or path
+
+        public string? AttachmentType { get; set; } // MIME type (e.g., image/png, application/pdf)
+
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
-
-        public User Sender { get; set; }
-        public User Receiver { get; set; }
+        public Guid? ParentMessageId { get; set; }
     }
 }

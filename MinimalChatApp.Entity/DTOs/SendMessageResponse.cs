@@ -10,8 +10,13 @@ namespace MinimalChatApp.Entity.DTOs
     {
         public Guid MessageId { get; set; }
         public Guid SenderId { get; set; }
-        public Guid ReceiverId { get; set; }
+        public string SenderName { get; set; }
+        public Guid? ReceiverId { get; set; }
         public string Content { get; set; }
+        public string? Attachment { get; set; }
+        public string? AttachmentType { get; set; }
         public DateTime Timestamp { get; set; }
+        public Guid? ParentMessageId { get; set; }
+        public Guid? ForwardedFromMessageId { get; set; } // NEW
     }
 }
