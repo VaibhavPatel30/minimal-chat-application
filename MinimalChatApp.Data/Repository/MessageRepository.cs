@@ -30,10 +30,11 @@ namespace MinimalChatApp.Data.Repository
             return await _context.Messages.FindAsync(messageId);
         }
 
-        public async Task UpdateAsync(Message message)
+        public async Task<Message?> UpdateAsync(Message message)
         {
             _context.Messages.Update(message);
             await _context.SaveChangesAsync();
+            return message;
         }
 
         public async Task DeleteAsync(Message message)

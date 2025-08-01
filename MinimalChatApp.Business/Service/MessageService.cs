@@ -83,7 +83,7 @@ namespace MinimalChatApp.Business.Service
             };
         }
 
-        public async Task<bool> EditMessageAsync(Guid senderId, Guid messageId, string newContent)
+        public async Task<Message?> EditMessageAsync(Guid senderId, Guid messageId, string newContent)
         {
             var message = await _messageRepository.GetByIdAsync(messageId);
             if (message == null)
@@ -100,9 +100,9 @@ namespace MinimalChatApp.Business.Service
                 throw new Exception("Message content cannot be empty");
             }
             message.Content = newContent;
-            await _messageRepository.UpdateAsync(message);
+            var newmessage = await _messageRepository.UpdateAsync(message);
 
-            return true;
+            return newmessage;
         }
 
         public async Task<bool> DeleteMessageAsync(Guid senderId, Guid messageId)
