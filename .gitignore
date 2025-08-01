@@ -11,3 +11,5 @@
 /MinimalChatApp.Data/obj
 /MinimalChatApp.Entity/bin/Debug/net8.0
 /MinimalChatApp.Entity/obj
+
+appsettings.json

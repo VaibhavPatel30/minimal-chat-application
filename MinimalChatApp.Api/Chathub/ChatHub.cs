@@ -31,6 +31,11 @@ namespace MinimalChatApp.Chathub
             }
         }
 
+        public async Task BroadcastStatusChange(Guid userId, int newStatus)
+        {
+            await Clients.All.SendAsync("StatusChanged", userId, newStatus);
+        }
+
         public override Task OnDisconnectedAsync(Exception? exception)
         {
             var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;

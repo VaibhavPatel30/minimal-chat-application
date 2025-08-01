@@ -73,8 +73,13 @@ namespace MinimalChatApp.Controllers
 
                 var senderId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
 
-                bool isMessageUpdated = await _messageService.EditMessageAsync(senderId, messageId, Content);
-                if (isMessageUpdated)
+                var MessageUpdated = await _messageService.EditMessageAsync(senderId, messageId, Content);
+
+                // Realtime push to receiver via SignalR
+                var receiverId = MessageUpdated.ReceiverId.ToString();
+                await _hubContext.Clients.Users(new[] { receiverId, senderId.ToString() }).SendAsync("MessageEdited", MessageUpdated);
+
+                if (MessageUpdated != null)
                 {
                     return Ok(new { message = "Message edited successfully" });
                 }
@@ -146,7 +151,7 @@ namespace MinimalChatApp.Controllers
                 timestamp = m.Timestamp
             });
 
-            return Ok(new { messages = response });
+            return Ok(new { messages = messages });
         }
 
 
